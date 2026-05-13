@@ -1,0 +1,31 @@
+name: RMP Weekly Content Generator
+
+on:
+  schedule:
+    - cron: "0 16 * * 0"
+  workflow_dispatch:
+
+jobs:
+  generate-posts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system fonts
+        run: sudo apt-get install -y fonts-liberation
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Generate weekly carousels
+        env:
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          FITNESS_FOLDER_ID:  ${{ secrets.FITNESS_FOLDER_ID }}
+          BUSINESS_FOLDER_ID: ${{ secrets.BUSINESS_FOLDER_ID }}
+          OUTPUT_FOLDER_ID:   ${{ secrets.OUTPUT_FOLDER_ID }}
+        run: python main.py
