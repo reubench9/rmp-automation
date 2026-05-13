@@ -3,20 +3,24 @@ import io
 import json
 import random
 import textwrap
+import zipfile
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import anthropic
 
-ANTHROPIC_API_KEY  = os.environ["ANTHROPIC_API_KEY"]
-GOOGLE_CREDENTIALS = os.environ["GOOGLE_CREDENTIALS"]
-FITNESS_FOLDER_ID  = os.environ["FITNESS_FOLDER_ID"]
-BUSINESS_FOLDER_ID = os.environ["BUSINESS_FOLDER_ID"]
-OUTPUT_FOLDER_ID   = os.environ["OUTPUT_FOLDER_ID"]
+# ── Credentials ───────────────────────────────────────────────────────────────
+ANTHROPIC_API_KEY    = os.environ["ANTHROPIC_API_KEY"]
+GOOGLE_REFRESH_TOKEN = os.environ["GOOGLE_REFRESH_TOKEN"]
+GOOGLE_CLIENT_ID     = os.environ["GOOGLE_CLIENT_ID"]
+GOOGLE_CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
+FITNESS_FOLDER_ID    = os.environ["FITNESS_FOLDER_ID"]
+BUSINESS_FOLDER_ID   = os.environ["BUSINESS_FOLDER_ID"]
+OUTPUT_FOLDER_ID     = os.environ["OUTPUT_FOLDER_ID"]
 
-SCOPES    = ["https://www.googleapis.com/auth/drive"]
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 IG_SIZE   = (1080, 1080)
@@ -76,9 +80,17 @@ Return ONLY valid JSON — no markdown fences, no extra text.
 }"""
 
 
+# ── Google Drive ──────────────────────────────────────────────────────────────
+
 def get_drive():
-    creds = service_account.Credentials.from_service_account_info(
-        json.loads(GOOGLE_CREDENTIALS), scopes=SCOPES)
+    creds = Credentials(
+        token=None,
+        refresh_token=GOOGLE_REFRESH_TOKEN,
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        token_uri="https://oauth2.googleapis.com/token"
+    )
+    creds.refresh(Request())
     return build("drive", "v3", credentials=creds)
 
 
@@ -127,6 +139,8 @@ def upload_txt(drive, text, name, folder_id):
     ).execute()
 
 
+# ── AI Content ────────────────────────────────────────────────────────────────
+
 def generate(pillar, topic):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     msg = client.messages.create(
@@ -137,6 +151,8 @@ def generate(pillar, topic):
     raw = msg.content[0].text.strip().replace("```json","").replace("```","").strip()
     return json.loads(raw)
 
+
+# ── Image Composition ─────────────────────────────────────────────────────────
 
 def square_crop(img):
     w, h  = img.size
@@ -150,52 +166,43 @@ def add_text_bar(img, lines, position="bottom", sz_head=56, sz_body=34):
     img   = img.copy()
     W, H  = img.size
     pad   = 44
-
     try:
         fh = ImageFont.truetype(FONT_BOLD, sz_head)
         fb = ImageFont.truetype(FONT_REG,  sz_body)
     except:
         fh = fb = ImageFont.load_default()
-
     draw = ImageDraw.Draw(img)
     wrapped = []
     for i, line in enumerate(lines):
-        font     = fh if i == 0 else fb
-        max_ch   = int((W - pad*2) / (sz_head*0.54)) if i == 0 else int((W - pad*2) / (sz_body*0.54))
+        font   = fh if i == 0 else fb
+        max_ch = int((W - pad*2) / (sz_head*0.54)) if i == 0 else int((W - pad*2) / (sz_body*0.54))
         for wl in textwrap.wrap(line, width=max(max_ch, 10)):
             wrapped.append((wl, font, i == 0))
-
     spacing = 14
     heights = [draw.textbbox((0,0), t, font=f)[3] - draw.textbbox((0,0), t, font=f)[1]
                for t, f, _ in wrapped]
     bar_h   = sum(heights) + spacing*(len(heights)-1) + pad*2
     bar_top = 0 if position == "top" else H - bar_h
-
     overlay = Image.new("RGBA", img.size, (0,0,0,0))
     ImageDraw.Draw(overlay).rectangle([(0, bar_top),(W, bar_top+bar_h)], fill=(0,0,0,185))
     img  = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(img)
-
     y = bar_top + pad
     for text, font, is_head in wrapped:
         bb  = draw.textbbox((0,0), text, font=font)
-        tw  = bb[2]-bb[0]
-        th  = bb[3]-bb[1]
+        tw, th = bb[2]-bb[0], bb[3]-bb[1]
         col = (255,255,255) if is_head else (210,210,210)
         draw.text(((W-tw)//2, y), text, font=font, fill=col)
         y += th + spacing
-
     return img
 
 
 def title_slide(photo, hook):
     return add_text_bar(square_crop(photo), [hook], "bottom", sz_head=60)
 
-
 def content_slide(photo, heading, body, idx):
     pos = "top" if idx % 2 == 0 else "bottom"
     return add_text_bar(square_crop(photo), [heading, body], pos, sz_head=48, sz_body=33)
-
 
 def cta_slide(photo, cta):
     img     = square_crop(photo)
@@ -204,14 +211,16 @@ def cta_slide(photo, cta):
     return add_text_bar(img, [cta], "bottom", sz_head=52)
 
 
-def build_carousel(drive, photos, content, label, out_folder):
+# ── Build Carousel ────────────────────────────────────────────────────────────
+
+def build_carousel(drive, photos, content, label, out_folder_id):
     print(f"\n  📸 {label}")
-    fid = make_folder(drive, label, out_folder)
+    fid = make_folder(drive, label, out_folder_id)
 
     def photo(i):
         return download_img(drive, photos[i % len(photos)]["id"])
 
-    upload_img(drive, title_slide(photo(0), content["hook"]),   "slide_01_title.jpg",  fid)
+    upload_img(drive, title_slide(photo(0), content["hook"]), "slide_01_title.jpg", fid)
     print("     ✅ Slide 1 — Title")
 
     for i, s in enumerate(content["slides"][:4]):
@@ -227,46 +236,44 @@ def build_carousel(drive, photos, content, label, out_folder):
     print("     ✅ Caption saved")
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 def main():
     week = datetime.now().strftime("%Y-%m-%d")
     print(f"\n🚀 RMP Automation — week of {week}\n")
 
     drive      = get_drive()
     out_folder = make_folder(drive, f"📅 Posts — Week of {week}", OUTPUT_FOLDER_ID)
-    print(f"📁 Weekly folder created\n")
+    print(f"📁 Weekly folder created in Drive\n")
 
     fit = list_images(drive, FITNESS_FOLDER_ID, 15)
     biz = list_images(drive, BUSINESS_FOLDER_ID, 8)
     random.shuffle(fit)
     random.shuffle(biz)
 
-    # Post 1 — Monday fitness
     if len(fit) >= 3:
         t1 = random.choice(FITNESS_TOPICS)
         build_carousel(drive, fit[:6], generate("fitness", t1),
                        f"POST 1 — Monday (Fitness) — {t1}", out_folder)
     else:
-        print("⚠️  Need at least 3 fitness photos. Add more to Drive.")
+        print("⚠️  Need at least 3 fitness photos.")
 
-    # Post 2 — Wednesday fitness
-    used = fit[:6]
     remaining = fit[6:] if len(fit) > 6 else fit
     if len(remaining) >= 3:
         t2 = random.choice([t for t in FITNESS_TOPICS if t != t1])
         build_carousel(drive, remaining, generate("fitness", t2),
                        f"POST 2 — Wednesday (Fitness) — {t2}", out_folder)
     else:
-        print("⚠️  Not enough fitness photos for 2nd post — add more to Drive.")
+        print("⚠️  Not enough fitness photos for 2nd post.")
 
-    # Post 3 — Friday business
     if len(biz) >= 3:
         t3 = random.choice(BUSINESS_TOPICS)
         build_carousel(drive, biz[:6], generate("business", t3),
                        f"POST 3 — Friday (Business) — {t3}", out_folder)
     else:
-        print("⚠️  Need at least 3 business photos. Add more to Drive.")
+        print("⚠️  Need at least 3 business photos.")
 
-    print(f"\n✅ All done! Open Drive → '📅 Posts — Week of {week}'\n")
+    print(f"\n✅ All done! Check Google Drive → '📅 Posts — Week of {week}'\n")
 
 
 if __name__ == "__main__":
