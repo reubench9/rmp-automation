@@ -3,16 +3,14 @@ import io
 import json
 import random
 import textwrap
-import zipfile
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import anthropic
 
-# ── Credentials ───────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY    = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_REFRESH_TOKEN = os.environ["GOOGLE_REFRESH_TOKEN"]
 GOOGLE_CLIENT_ID     = os.environ["GOOGLE_CLIENT_ID"]
@@ -80,8 +78,6 @@ Return ONLY valid JSON — no markdown fences, no extra text.
 }"""
 
 
-# ── Google Drive ──────────────────────────────────────────────────────────────
-
 def get_drive():
     creds = Credentials(
         token=None,
@@ -94,7 +90,7 @@ def get_drive():
     return build("drive", "v3", credentials=creds)
 
 
-def list_images(drive, folder_id, limit=15):
+def list_images(drive, folder_id, limit=20):
     res = drive.files().list(
         q=f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false",
         fields="files(id,name)", pageSize=limit, orderBy="createdTime desc"
@@ -110,7 +106,12 @@ def download_img(drive, file_id):
     while not done:
         _, done = dl.next_chunk()
     buf.seek(0)
-    return Image.open(buf).convert("RGB")
+    raw_bytes = buf.read()
+    # Open fresh from bytes to preserve EXIF
+    img = Image.open(io.BytesIO(raw_bytes))
+    # Fix rotation using Pillow's exif_transpose
+    img = ImageOps.exif_transpose(img)
+    return img.convert("RGB")
 
 
 def make_folder(drive, name, parent):
@@ -139,8 +140,6 @@ def upload_txt(drive, text, name, folder_id):
     ).execute()
 
 
-# ── AI Content ────────────────────────────────────────────────────────────────
-
 def generate(pillar, topic):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     msg = client.messages.create(
@@ -151,8 +150,6 @@ def generate(pillar, topic):
     raw = msg.content[0].text.strip().replace("```json","").replace("```","").strip()
     return json.loads(raw)
 
-
-# ── Image Composition ─────────────────────────────────────────────────────────
 
 def square_crop(img):
     w, h  = img.size
@@ -211,8 +208,6 @@ def cta_slide(photo, cta):
     return add_text_bar(img, [cta], "bottom", sz_head=52)
 
 
-# ── Build Carousel ────────────────────────────────────────────────────────────
-
 def build_carousel(drive, photos, content, label, out_folder_id):
     print(f"\n  📸 {label}")
     fid = make_folder(drive, label, out_folder_id)
@@ -236,7 +231,21 @@ def build_carousel(drive, photos, content, label, out_folder_id):
     print("     ✅ Caption saved")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+def split_photos(photos):
+    """Split photo list into two non-overlapping halves for post 1 and 2."""
+    total = len(photos)
+    if total >= 12:
+        return photos[:6], photos[6:12]
+    elif total >= 6:
+        mid = total // 2
+        return photos[:mid], photos[mid:]
+    else:
+        # Not enough for two unique sets — shuffle differently for each
+        set1 = photos[:]
+        set2 = photos[:]
+        random.shuffle(set2)
+        return set1, set2
+
 
 def main():
     week = datetime.now().strftime("%Y-%m-%d")
@@ -246,28 +255,34 @@ def main():
     out_folder = make_folder(drive, f"📅 Posts — Week of {week}", OUTPUT_FOLDER_ID)
     print(f"📁 Weekly folder created in Drive\n")
 
-    fit = list_images(drive, FITNESS_FOLDER_ID, 15)
-    biz = list_images(drive, BUSINESS_FOLDER_ID, 8)
+    fit = list_images(drive, FITNESS_FOLDER_ID, 20)
+    biz = list_images(drive, BUSINESS_FOLDER_ID, 10)
     random.shuffle(fit)
     random.shuffle(biz)
 
-    if len(fit) >= 3:
-        t1 = random.choice(FITNESS_TOPICS)
-        build_carousel(drive, fit[:6], generate("fitness", t1),
+    print(f"Found {len(fit)} fitness photos, {len(biz)} business photos\n")
+
+    fit1, fit2 = split_photos(fit)
+
+    # Post 1 — Monday fitness
+    t1 = random.choice(FITNESS_TOPICS)
+    if len(fit1) >= 3:
+        build_carousel(drive, fit1, generate("fitness", t1),
                        f"POST 1 — Monday (Fitness) — {t1}", out_folder)
     else:
         print("⚠️  Need at least 3 fitness photos.")
 
-    remaining = fit[6:] if len(fit) > 6 else fit
-    if len(remaining) >= 3:
-        t2 = random.choice([t for t in FITNESS_TOPICS if t != t1])
-        build_carousel(drive, remaining, generate("fitness", t2),
+    # Post 2 — Wednesday fitness
+    t2 = random.choice([t for t in FITNESS_TOPICS if t != t1])
+    if len(fit2) >= 3:
+        build_carousel(drive, fit2, generate("fitness", t2),
                        f"POST 2 — Wednesday (Fitness) — {t2}", out_folder)
     else:
-        print("⚠️  Not enough fitness photos for 2nd post.")
+        print("⚠️  Not enough fitness photos for 2nd post — add more to Drive.")
 
+    # Post 3 — Friday business
+    t3 = random.choice(BUSINESS_TOPICS)
     if len(biz) >= 3:
-        t3 = random.choice(BUSINESS_TOPICS)
         build_carousel(drive, biz[:6], generate("business", t3),
                        f"POST 3 — Friday (Business) — {t3}", out_folder)
     else:
