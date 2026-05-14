@@ -15,66 +15,84 @@ ANTHROPIC_API_KEY    = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_REFRESH_TOKEN = os.environ["GOOGLE_REFRESH_TOKEN"]
 GOOGLE_CLIENT_ID     = os.environ["GOOGLE_CLIENT_ID"]
 GOOGLE_CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
-FITNESS_FOLDER_ID    = os.environ["FITNESS_FOLDER_ID"]
-BUSINESS_FOLDER_ID   = os.environ["BUSINESS_FOLDER_ID"]
 OUTPUT_FOLDER_ID     = os.environ["OUTPUT_FOLDER_ID"]
+
+FOLDER_CYCLING          = os.environ["FOLDER_CYCLING"]
+FOLDER_RUNNING          = os.environ["FOLDER_RUNNING"]
+FOLDER_GYM_WEIGHTS      = os.environ["FOLDER_GYM_WEIGHTS"]
+FOLDER_NUTRITION        = os.environ["FOLDER_NUTRITION"]
+FOLDER_CONTENT_CREATION = os.environ["FOLDER_CONTENT_CREATION"]
 
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 IG_SIZE   = (1080, 1080)
 
 FITNESS_TOPICS = [
-    "How to improve your running",
-    "How to stay on track when going on holiday",
-    "Cycling for beginners in Dubai",
-    "How to build muscle eating normal food",
-    "Running in the Dubai heat — survival guide",
-    "Zone 2 training explained simply",
-    "How to get your first pull up",
-    "Nutrition basics for endurance athletes",
-    "How to recover faster after training",
-    "Al Qudra cycling tips for beginners",
+    {"topic": "How to improve your running",               "folder": "running"},
+    {"topic": "How to stay on track training on holiday",  "folder": "running"},
+    {"topic": "Cycling for beginners in Dubai",            "folder": "cycling"},
+    {"topic": "How to build muscle eating normal food",    "folder": "gym"},
+    {"topic": "Running in the Dubai heat — survival guide","folder": "running"},
+    {"topic": "Zone 2 training — why slow makes you fast", "folder": "cycling"},
+    {"topic": "How to get your first pull up",             "folder": "gym"},
+    {"topic": "What to eat before a long ride or run",     "folder": "nutrition"},
+    {"topic": "How to recover faster after hard training", "folder": "gym"},
+    {"topic": "Al Qudra cycling tips for beginners",       "folder": "cycling"},
+    {"topic": "Progressive overload — the only rule that matters", "folder": "gym"},
+    {"topic": "Why most people never see results",         "folder": "gym"},
+    {"topic": "How to run further without burning out",    "folder": "running"},
+    {"topic": "Nutrition basics every athlete needs to know","folder": "nutrition"},
 ]
 
 BUSINESS_TOPICS = [
-    "How to film yourself better",
-    "How to talk confidently on camera",
-    "How to grow from 0 followers",
-    "How to pitch yourself to brands",
-    "How to turn your hobby into income",
-    "Content creation tips for beginners",
-    "How to build a personal brand with no budget",
-    "How to land your first sponsorship",
-    "Mindset shifts every new entrepreneur needs",
-    "How to stay consistent when nobody is watching",
+    {"topic": "How to film yourself better on your phone",   "folder": "content"},
+    {"topic": "How to talk confidently on camera",           "folder": "content"},
+    {"topic": "How to grow from 0 followers organically",    "folder": "content"},
+    {"topic": "How to pitch yourself to brands",             "folder": "content"},
+    {"topic": "How to turn your hobby into income",          "folder": "content"},
+    {"topic": "Content creation tips for complete beginners","folder": "content"},
+    {"topic": "How to build a personal brand with no budget","folder": "content"},
+    {"topic": "How to land your first brand sponsorship",    "folder": "content"},
+    {"topic": "Mindset shifts every new entrepreneur needs", "folder": "content"},
+    {"topic": "How to stay consistent when nobody is watching","folder": "content"},
 ]
 
-SYSTEM_FITNESS = """You write Instagram carousel content for @reubenhurter, a Dubai fitness/cycling/running creator.
-Return ONLY valid JSON — no markdown fences, no extra text.
+SYSTEM_FITNESS = """You are writing high-value Instagram carousel content for @reubenhurter — a Dubai-based fitness, cycling and running creator with a real, authentic voice.
+
+His backstory: grew up in South Africa, used lockdown to get serious about fitness, moved to Dubai with no plan and built everything from scratch. He trains hard, cycles Al Qudra, runs in the heat, and talks straight.
+
+Generate content that gives REAL value — not generic tips. Think like a knowledgeable training partner giving honest advice.
+
+Return ONLY valid JSON — no markdown, no extra text:
 {
-  "hook": "punchy title max 8 words",
+  "hook": "Scroll-stopping title. Bold, direct, max 8 words. Make someone STOP scrolling.",
   "slides": [
-    {"heading": "max 6 words", "body": "1-2 sentences max 25 words"},
+    {"heading": "Short punchy heading max 6 words", "body": "One concrete, specific insight. No fluff. Max 20 words. Real advice someone can use TODAY."},
     {"heading": "...", "body": "..."},
     {"heading": "...", "body": "..."},
     {"heading": "...", "body": "..."}
   ],
-  "cta": "final slide CTA max 10 words",
-  "caption": "Full IG caption — conversational, authentic, 3-5 lines then blank line then 20 hashtags mixing Dubai fitness cycling running lifestyle tags"
+  "cta": "Save this / Share with someone who needs it — max 10 words",
+  "caption": "Write a DEEP VALUE caption. Structure: 1) Hook line that makes them stop (not the same as the slide hook). 2) Brief personal angle from Reuben — why this matters, real experience. 3) The actual value — go deeper than the slides. Expand each point with specific detail, numbers, real examples. 4) What most people get wrong about this topic. 5) One honest closing line. 6) Blank line. 7) 25 hashtags — mix of: Dubai fitness niche tags, cycling/running specific, broad fitness, lifestyle Dubai. No spaces between tags. Caption should feel like it was written by a real person who actually trains, not an AI."
 }"""
 
-SYSTEM_BUSINESS = """You write Instagram carousel content for Radical Marketing Productions, a Dubai creative brand for entrepreneurs.
-Return ONLY valid JSON — no markdown fences, no extra text.
+SYSTEM_BUSINESS = """You are writing high-value Instagram carousel content for Radical Marketing Productions — Reuben Hurter's Dubai-based creative brand helping people build businesses and personal brands from scratch.
+
+Reuben's story: South African, worked as a financial adviser cold-calling strangers (hated it), bought a camera, taught himself video, got his first client, visited Dubai, fell in love, moved with no clear plan. Now builds brands, shoots content, grows Instagrams. Real experience, no theory.
+
+Generate content that gives REAL value — not motivational fluff. Practical, honest, from someone who actually did it.
+
+Return ONLY valid JSON — no markdown, no extra text:
 {
-  "hook": "punchy title max 8 words",
+  "hook": "Scroll-stopping title. Bold, direct, max 8 words. Make someone STOP scrolling.",
   "slides": [
-    {"heading": "max 6 words", "body": "1-2 sentences max 25 words"},
+    {"heading": "Short punchy heading max 6 words", "body": "One concrete, actionable insight. No fluff. Max 20 words. Something they can do TODAY."},
     {"heading": "...", "body": "..."},
     {"heading": "...", "body": "..."},
     {"heading": "...", "body": "..."}
   ],
-  "cta": "final slide CTA max 10 words",
-  "caption": "Full IG caption — punchy, real talk, motivational, 3-5 lines then blank line then 20 hashtags mixing Dubai business marketing personal brand entrepreneur tags"
+  "cta": "Save this / Follow for more — max 10 words",
+  "caption": "Write a DEEP VALUE caption. Structure: 1) Hook — real talk opener, makes them feel seen. 2) Personal angle — Reuben's real experience with this (cold calling, moving to Dubai, building from zero). 3) Deep value — go further than the slides. Specific tactics, real numbers, what actually works. 4) The mistake most people make. 5) Honest closing line — no fake motivation. 6) Blank line. 7) 25 hashtags — mix of: Dubai entrepreneur, personal brand, content creator, marketing, business growth tags. Caption should sound like a real person sharing hard-earned lessons, not a template."
 }"""
 
 
@@ -88,6 +106,17 @@ def get_drive():
     )
     creds.refresh(Request())
     return build("drive", "v3", credentials=creds)
+
+
+def get_folder_id(folder_key):
+    mapping = {
+        "cycling":  FOLDER_CYCLING,
+        "running":  FOLDER_RUNNING,
+        "gym":      FOLDER_GYM_WEIGHTS,
+        "nutrition":FOLDER_NUTRITION,
+        "content":  FOLDER_CONTENT_CREATION,
+    }
+    return mapping[folder_key]
 
 
 def list_images(drive, folder_id, limit=20):
@@ -106,10 +135,8 @@ def download_img(drive, file_id):
     while not done:
         _, done = dl.next_chunk()
     buf.seek(0)
-    raw_bytes = buf.read()
-    # Open fresh from bytes to preserve EXIF
-    img = Image.open(io.BytesIO(raw_bytes))
-    # Fix rotation using Pillow's exif_transpose
+    raw = buf.read()
+    img = Image.open(io.BytesIO(raw))
     img = ImageOps.exif_transpose(img)
     return img.convert("RGB")
 
@@ -143,7 +170,7 @@ def upload_txt(drive, text, name, folder_id):
 def generate(pillar, topic):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     msg = client.messages.create(
-        model="claude-opus-4-5", max_tokens=1200,
+        model="claude-opus-4-5", max_tokens=2000,
         system=SYSTEM_FITNESS if pillar == "fitness" else SYSTEM_BUSINESS,
         messages=[{"role": "user", "content": f"Topic: {topic}"}]
     )
@@ -231,20 +258,14 @@ def build_carousel(drive, photos, content, label, out_folder_id):
     print("     ✅ Caption saved")
 
 
-def split_photos(photos):
-    """Split photo list into two non-overlapping halves for post 1 and 2."""
-    total = len(photos)
-    if total >= 12:
-        return photos[:6], photos[6:12]
-    elif total >= 6:
-        mid = total // 2
-        return photos[:mid], photos[mid:]
-    else:
-        # Not enough for two unique sets — shuffle differently for each
-        set1 = photos[:]
-        set2 = photos[:]
-        random.shuffle(set2)
-        return set1, set2
+def pick_post(drive, topic_list, used_topics):
+    available = [t for t in topic_list if t["topic"] not in used_topics]
+    if not available:
+        available = topic_list
+    chosen = random.choice(available)
+    photos = list_images(drive, get_folder_id(chosen["folder"]), 20)
+    random.shuffle(photos)
+    return chosen["topic"], photos
 
 
 def main():
@@ -253,42 +274,37 @@ def main():
 
     drive      = get_drive()
     out_folder = make_folder(drive, f"📅 Posts — Week of {week}", OUTPUT_FOLDER_ID)
-    print(f"📁 Weekly folder created in Drive\n")
+    print(f"📁 Weekly folder created\n")
 
-    fit = list_images(drive, FITNESS_FOLDER_ID, 20)
-    biz = list_images(drive, BUSINESS_FOLDER_ID, 10)
-    random.shuffle(fit)
-    random.shuffle(biz)
-
-    print(f"Found {len(fit)} fitness photos, {len(biz)} business photos\n")
-
-    fit1, fit2 = split_photos(fit)
+    used = []
 
     # Post 1 — Monday fitness
-    t1 = random.choice(FITNESS_TOPICS)
-    if len(fit1) >= 3:
-        build_carousel(drive, fit1, generate("fitness", t1),
+    t1, p1 = pick_post(drive, FITNESS_TOPICS, used)
+    used.append(t1)
+    if len(p1) >= 3:
+        build_carousel(drive, p1[:6], generate("fitness", t1),
                        f"POST 1 — Monday (Fitness) — {t1}", out_folder)
     else:
-        print("⚠️  Need at least 3 fitness photos.")
+        print(f"⚠️  Not enough photos for: {t1}")
 
     # Post 2 — Wednesday fitness
-    t2 = random.choice([t for t in FITNESS_TOPICS if t != t1])
-    if len(fit2) >= 3:
-        build_carousel(drive, fit2, generate("fitness", t2),
+    t2, p2 = pick_post(drive, FITNESS_TOPICS, used)
+    used.append(t2)
+    if len(p2) >= 3:
+        build_carousel(drive, p2[:6], generate("fitness", t2),
                        f"POST 2 — Wednesday (Fitness) — {t2}", out_folder)
     else:
-        print("⚠️  Not enough fitness photos for 2nd post — add more to Drive.")
+        print(f"⚠️  Not enough photos for: {t2}")
 
     # Post 3 — Friday business
-    t3 = random.choice(BUSINESS_TOPICS)
-    if len(biz) >= 3:
-        build_carousel(drive, biz[:6], generate("business", t3),
+    t3, p3 = pick_post(drive, BUSINESS_TOPICS, [])
+    if len(p3) >= 3:
+        build_carousel(drive, p3[:6], generate("business", t3),
                        f"POST 3 — Friday (Business) — {t3}", out_folder)
     else:
-        print("⚠️  Need at least 3 business photos.")
+        print(f"⚠️  Not enough photos for: {t3}")
 
-    print(f"\n✅ All done! Check Google Drive → '📅 Posts — Week of {week}'\n")
+    print(f"\n✅ Done! Google Drive → '📅 Posts — Week of {week}'\n")
 
 
 if __name__ == "__main__":
