@@ -19,11 +19,14 @@ jobs:
         run: pip install -r requirements.txt
       - name: Generate weekly carousels
         env:
-          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
-          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          FITNESS_FOLDER_ID:    ${{ secrets.FITNESS_FOLDER_ID }}
-          BUSINESS_FOLDER_ID:   ${{ secrets.BUSINESS_FOLDER_ID }}
-          OUTPUT_FOLDER_ID:     ${{ secrets.OUTPUT_FOLDER_ID }}
+          ANTHROPIC_API_KEY:       ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_REFRESH_TOKEN:    ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_CLIENT_ID:        ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET:    ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          OUTPUT_FOLDER_ID:        ${{ secrets.OUTPUT_FOLDER_ID }}
+          FOLDER_CYCLING:          ${{ secrets.FOLDER_CYCLING }}
+          FOLDER_RUNNING:          ${{ secrets.FOLDER_RUNNING }}
+          FOLDER_GYM_WEIGHTS:      ${{ secrets.FOLDER_GYM_WEIGHTS }}
+          FOLDER_NUTRITION:        ${{ secrets.FOLDER_NUTRITION }}
+          FOLDER_CONTENT_CREATION: ${{ secrets.FOLDER_CONTENT_CREATION }}
         run: python main.py
